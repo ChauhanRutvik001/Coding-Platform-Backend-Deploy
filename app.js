@@ -28,15 +28,30 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static("public"));
 app.use(express.json());
+console.log(process.env.BACKEND_ORIGIN);
+
+// Split BACKEND_ORIGIN by comma to support multiple origins
+const allowedOrigins = process.env.BACKEND_ORIGIN 
+  ? process.env.BACKEND_ORIGIN.split(',').map(origin => origin.trim())
+  : ["http://localhost:5173"];
 
 const corsOptions = {
-  origin: process.env.BACKEND_ORIGIN || "http://localhost:5173",
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(null, false);
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie']
 };
-// const corsOptions = {
-//   origin: "http://192.168.24.235:5173",
-//   credentials: true,
-// };
 app.use(cors(corsOptions));
 app.use(express.static("public"));
 

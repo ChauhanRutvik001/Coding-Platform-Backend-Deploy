@@ -42,7 +42,9 @@ export const login = async (req, res) => {
         .cookie("token", token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
           expires: new Date(Date.now() + oneDay),
+          domain: process.env.NODE_ENV === "production" ? undefined : undefined
         })
         .json({
           message: "Welcome! You are the first user and have been set as an administrator.",
@@ -54,6 +56,7 @@ export const login = async (req, res) => {
             email: adminUser.email,
             role: adminUser.role,
           },
+          token: token, // Include token in response for localStorage storage
           success: true,
         });
     }
@@ -119,7 +122,9 @@ export const login = async (req, res) => {
       .cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         expires: new Date(Date.now() + oneDay),
+        domain: process.env.NODE_ENV === "production" ? undefined : undefined
       })
       .json({
         message: "Welcome back!",
@@ -134,6 +139,7 @@ export const login = async (req, res) => {
           semester: user.semester,
           batch: user.batch,
         },
+        token: token, // Include token in response for localStorage storage
         success: true,
       });
   } catch (error) {
@@ -266,6 +272,9 @@ export const logout = async (req, res) => {
     res.cookie("token", "logout", {
       expires: new Date(Date.now()),
       httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      domain: process.env.NODE_ENV === "production" ? undefined : undefined
     });
 
     return res
@@ -352,8 +361,18 @@ export const fetchSubjects = async (req, res) => {
 
 export const getSocketToken = async (req, res) => {
   try {
-    // Get the token from the cookie
-    const token = req.cookies.token;
+    let token;
+    
+    // First, try to get token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
+    // If no token in header, try to get from cookies
+    if (!token) {
+      token = req.cookies.token;
+    }
     
     if (!token) {
       return res.status(401).json({

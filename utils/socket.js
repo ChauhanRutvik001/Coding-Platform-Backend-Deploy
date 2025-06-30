@@ -6,9 +6,14 @@ let io;
 const connectedUsers = new Map();
 
 export const initSocketServer = (server) => {
+  // Split SOCKET_CORS_ORIGIN by comma to support multiple origins
+  const allowedOrigins = process.env.SOCKET_CORS_ORIGIN 
+    ? process.env.SOCKET_CORS_ORIGIN.split(',').map(origin => origin.trim())
+    : ['http://localhost:5173'];
+
   io = new Server(server, {
     cors: {
-      origin: process.env.SOCKET_CORS_ORIGIN || 'http://localhost:5173',
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
       credentials: true
     }

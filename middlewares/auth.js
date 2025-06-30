@@ -3,26 +3,35 @@ import { ForbiddenError, UnauthorizedError } from "../utils/errors.js";
 import { verifyToken } from "../utils/jwt.js";
 
 export const isAuthorized = async (req, res, next) => {
-  if (!req.headers.cookie) throw new UnauthorizedError("please login!");
-  // console.log(req.headers.cookie);
-
-  const cookies = req.headers.cookie.split(";").reduce((acc, cookie) => {
-    const [name, value] = cookie.trim().split("=");
-    acc[name] = value;
-    return acc;
-  }, {});
-  const token = cookies.token;
+  let token;
+  
+  // First, try to get token from Authorization header
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  }
+  
+  // If no token in header, try to get from cookies
+  if (!token && req.headers.cookie) {
+    const cookies = req.headers.cookie.split(";").reduce((acc, cookie) => {
+      const [name, value] = cookie.trim().split("=");
+      acc[name] = value;
+      return acc;
+    }, {});
+    token = cookies.token;
+  }
 
   if (!token) throw new UnauthorizedError("Token not found");
+  
   const decoded = await verifyToken(token);
   const user = await User.findById(decoded.id, { password: 0 });
 
-  // console.log("-->", user.sessionId, "-->", decoded.sessionId)
   if (!user || user.sessionId !== decoded.sessionId) {
     throw new UnauthorizedError(
       "Invalid or expired session. Please log in again."
     );
   }
+  
   req.user = {
     id: user._id,
     isAdmin: user.role,
